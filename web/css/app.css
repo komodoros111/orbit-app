@@ -98,6 +98,18 @@
 .mention:hover { background: rgba(255,255,255,.28); }
 .mention-role { background: rgba(255,255,255,.10); }
 
+/* ---- anexos ---- */
+.att { display: inline-block; margin-top: 6px; max-width: 440px; }
+.att-img { max-width: 440px; max-height: 360px; border-radius: 10px; border: 1px solid var(--line); display: block; cursor: zoom-in; transition: filter var(--speed); }
+.att-img:hover { filter: brightness(1.06); }
+.att-video { max-width: 440px; max-height: 360px; border-radius: 10px; border: 1px solid var(--line); background: #000; display: block; margin-top: 6px; }
+.att-audio { width: 340px; max-width: 100%; margin-top: 6px; }
+.att-file { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid var(--line-2); border-radius: 10px; background: var(--bg-2); max-width: 340px; transition: border-color var(--speed); }
+.att-file:hover { border-color: var(--white); }
+.att-file .ico { color: var(--white); flex: 0 0 auto; }
+.af-name { font-weight: 600; font-size: 13px; word-break: break-all; }
+.af-size { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
 /* ---- mention autocomplete ---- */
 .mention-pop { position: absolute; bottom: 100%; left: 16px; right: 16px; margin-bottom: 8px; background: var(--elev);
   border: 1px solid var(--line-2); border-radius: 10px; max-height: 240px; overflow: auto; box-shadow: var(--shadow); z-index: 30; padding: 6px;

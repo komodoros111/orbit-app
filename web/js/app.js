@@ -1,6 +1,7 @@
 import { h, clear, avatar, toast, iconBtn, modal, escapeHtml, confirmDialog } from './ui.js';
 import { icon } from './icons.js';
-import { api } from './api.js';
+import { api, uploadFile } from './api.js';
+import { BASE } from './config.js';
 import { state } from './state.js';
 import { connectSocket, emitS, onS, socket, ensureSocketClient } from './socket.js';
 import { sfx } from './sound.js';
@@ -274,7 +275,19 @@ export async function mountApp(App, root) {
     }
     ta.addEventListener('blur', () => setTimeout(hideAC, 120));
 
-    const composer = h('div', { class: 'composer' }, ac, h('div', { class: 'composer-box' }, ta, h('button', { class: 'icon-btn send-btn', html: icon('send', 18), onClick: send })));
+    const fileInput = h('input', { type: 'file', style: { display: 'none' } });
+    fileInput.addEventListener('change', async () => {
+      const f = fileInput.files[0]; if (!f) return;
+      toast('Enviando ' + f.name + '…', 'info');
+      try {
+        const attachment = await uploadFile(f);
+        emitS('message:send', { channelId: ch.id, content: ta.value.trim(), attachment });
+        ta.value = ''; ta.style.height = 'auto'; sfx.click();
+      } catch (e) { toast(e.message, 'error'); }
+      fileInput.value = '';
+    });
+    const attachBtn = h('button', { class: 'icon-btn', title: 'Anexar arquivo', html: icon('plus', 20), onClick: () => fileInput.click() });
+    const composer = h('div', { class: 'composer' }, ac, h('div', { class: 'composer-box' }, attachBtn, fileInput, ta, h('button', { class: 'icon-btn send-btn', html: icon('send', 18), onClick: send })));
     main.append(head, list, composer);
 
     const { messages } = await api.get('/api/channels/' + ch.id + '/messages');
@@ -301,9 +314,22 @@ export async function mountApp(App, root) {
     const authorLine = h('div', { class: 'line1' },
       h('span', { class: 'author' + (m.author.bot ? ' bot' : '') }, m.author.username, m.author.bot ? h('span', { class: 'botpill' }, 'BOT') : ''),
       h('span', { class: 'ts' }, time));
-    const el = h('div', { class: 'msg' + (grouped ? ' grouped' : '') }, av,
-      h('div', { class: 'body' }, grouped ? null : authorLine, h('div', { class: 'content md', html: renderMarkdown(m.content, state.currentServer) })));
-    return el;
+    const body = h('div', { class: 'body' }, grouped ? null : authorLine);
+    if (m.content) body.appendChild(h('div', { class: 'content md', html: renderMarkdown(m.content, state.currentServer) }));
+    if (m.attachment) body.appendChild(renderAttachment(m.attachment));
+    return h('div', { class: 'msg' + (grouped ? ' grouped' : '') }, av, body);
+  }
+
+  function fmtSize(b) { b = b || 0; return b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b / 1024)) + ' KB'; }
+  function renderAttachment(att) {
+    const url = att.url && att.url.startsWith('/') ? BASE + att.url : att.url;
+    const type = att.type || '';
+    if (type.startsWith('image/')) return h('a', { class: 'att', href: url, target: '_blank' }, h('img', { class: 'att-img', src: url, alt: att.name, loading: 'lazy' }));
+    if (type.startsWith('video/')) return h('video', { class: 'att att-video', src: url, controls: 'true', preload: 'metadata' });
+    if (type.startsWith('audio/')) return h('audio', { class: 'att att-audio', src: url, controls: 'true', preload: 'metadata' });
+    return h('a', { class: 'att att-file', href: url, target: '_blank', download: att.name },
+      h('span', { class: 'ico', html: icon('link', 18) }),
+      h('div', {}, h('div', { class: 'af-name' }, att.name), h('div', { class: 'af-size' }, fmtSize(att.size))));
   }
 
   // ---------- MEMBERS ----------
@@ -511,4 +537,9 @@ export async function mountApp(App, root) {
   startStatusAutoDetect();
   renderRail();
   app.goHome('friends');
+
+  // Modo de teste: cria os "amigos bots" que aceitam chamada automaticamente
+  if (window.__ORBIT_TEST__ || new URLSearchParams(location.search).get('test') === '1') {
+    import('./testpeer.js').then((m) => m.startTestPeer(state.me)).catch((e) => console.warn('testpeer', e));
+  }
 }

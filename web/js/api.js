@@ -1,5 +1,19 @@
 import { BASE, getToken, setToken } from './config.js';
 
+export async function uploadFile(file) {
+  const token = getToken();
+  const fd = new FormData();
+  fd.append('file', file);
+  const res = await fetch(BASE + '/api/upload', {
+    method: 'POST',
+    headers: token ? { authorization: 'Bearer ' + token } : {},
+    body: fd,
+  });
+  let data = null; try { data = await res.json(); } catch {}
+  if (!res.ok) throw new Error((data && data.error) || ('Erro ' + res.status));
+  return data.attachment;
+}
+
 async function req(method, path, body) {
   const headers = { 'content-type': 'application/json' };
   const token = getToken();

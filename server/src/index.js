@@ -1,11 +1,13 @@
 'use strict';
 const path = require('path');
+const fs = require('fs');
 const http = require('http');
 const crypto = require('crypto');
 const express = require('express');
+const multer = require('multer');
 const { Server } = require('socket.io');
 
-const { db } = require('./db');
+const { db, DATA_DIR } = require('./db');
 const { seed } = require('./seed');
 const { GAMES } = require('./games');
 const auth = require('./auth');
@@ -31,6 +33,17 @@ app.use((req, res, next) => {
 
 // Health check (para Render/Railway/uptime)
 app.get('/healthz', (_req, res) => res.json({ ok: true, ts: Date.now() }));
+
+// ---------- uploads (anexos do chat) ----------
+const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
+try { fs.mkdirSync(UPLOADS_DIR, { recursive: true }); } catch {}
+const HARD_MAX = 100 * 1024 * 1024; // teto absoluto (plano Orbit+)
+const uploadStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
+  filename: (_req, file, cb) => cb(null, crypto.randomUUID() + (path.extname(file.originalname || '').slice(0, 12) || '')),
+});
+const upload = multer({ storage: uploadStorage, limits: { fileSize: HARD_MAX } });
+app.use('/uploads', express.static(UPLOADS_DIR, { maxAge: '7d' }));
 
 // ---------- helpers ----------
 function uid() {
@@ -87,7 +100,7 @@ function authorOf(msg) {
 }
 
 function messageView(msg) {
-  return { id: msg.id, channelId: msg.channelId, content: msg.content, ts: msg.ts, author: authorOf(msg) };
+  return { id: msg.id, channelId: msg.channelId, content: msg.content, ts: msg.ts, author: authorOf(msg), attachment: msg.attachment || null };
 }
 
 function userServers(userId) {
@@ -176,6 +189,28 @@ app.post('/api/device/poll', (req, res) => {
 app.use('/api', auth.authMiddleware);
 
 app.get('/api/me', (req, res) => res.json({ user: auth.publicUser(req.user) }));
+
+// ---------- upload de anexos (imagem/áudio/vídeo/arquivo) ----------
+app.post('/api/upload', (req, res) => {
+  upload.single('file')(req, res, (err) => {
+    if (err) return res.status(413).json({ error: 'Falha no upload (arquivo muito grande? máx 100MB).' });
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
+    const max = req.user.beta ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
+    if (req.file.size > max) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(413).json({ error: req.user.beta ? 'Arquivo acima de 100MB.' : 'Arquivo acima de 10MB. Orbit+ libera até 100MB.' });
+    }
+    res.json({ attachment: {
+      url: '/uploads/' + path.basename(req.file.path),
+      name: req.file.originalname || 'arquivo',
+      size: req.file.size,
+      type: req.file.mimetype || 'application/octet-stream',
+    } });
+  });
+});
+
+// limite de upload do usuário (pra UI mostrar antes de enviar)
+app.get('/api/upload/limit', (req, res) => res.json({ max: req.user.beta ? 100 * 1024 * 1024 : 10 * 1024 * 1024, beta: !!req.user.beta }));
 
 // ---------- Device authorization — AUTENTICADO (aprovar/negar no site) ----------
 app.get('/api/device/info', (req, res) => {
@@ -640,10 +675,10 @@ const io = new Server(httpServer, { cors: { origin: '*' }, maxHttpBufferSize: 5e
 
 const online = new Map(); // userId -> Set(socketId)
 
-function postMessage(channelId, { authorId, botId, content }) {
+function postMessage(channelId, { authorId, botId, content, attachment }) {
   const ch = db.byId('channels', channelId);
-  if (!ch || !content) return null;
-  const msg = { id: uid(), channelId, authorId: authorId || null, botId: botId || null, content: String(content).slice(0, 4000), ts: Date.now() };
+  if (!ch || (!content && !attachment)) return null;
+  const msg = { id: uid(), channelId, authorId: authorId || null, botId: botId || null, content: String(content || '').slice(0, 4000), attachment: attachment || null, ts: Date.now() };
   db.insert('messages', msg);
   // limita o histórico por canal (mantém as últimas 300) pra não inflar o store
   const chMsgs = db.state.messages.filter((m) => m.channelId === channelId);
@@ -693,14 +728,14 @@ io.on('connection', (socket) => {
     if (s && getMembership(s, userId)) socket.join('server:' + serverId);
   });
 
-  socket.on('message:send', async ({ channelId, content }) => {
+  socket.on('message:send', async ({ channelId, content, attachment }) => {
     const ch = db.byId('channels', channelId);
     if (!ch || ch.type === 'voice') return;
     const s = db.byId('servers', ch.serverId);
     const m = getMembership(s, userId);
     if (!m || m.banned || m.muted) return;
     if (!perms.has(perms.memberPermissions(s, m), perms.PERMISSIONS.SEND_MESSAGES)) return;
-    const msg = postMessage(channelId, { authorId: userId, content });
+    const msg = postMessage(channelId, { authorId: userId, content, attachment });
     if (msg) {
       const u = db.byId('users', userId);
       bots.maybeReply(botCtx, ch, msg, u ? u.username : 'alguém').catch(() => {});

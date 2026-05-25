@@ -16,6 +16,8 @@ mobile/.expo/
 
 # APKs (grandes; passam do limite de 100MB do GitHub) — vão por Release/CI
 *.apk
+# instaladores .exe (grandes) — vão pra Vercel/Release, não pro git
+*.exe
 
 # dados/locais
 .orbit/
