@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<style>
+  html, body { margin: 0; height: 100%; background: #000; color: #fff; overflow: hidden;
+    font-family: 'Segoe UI', system-ui, sans-serif; }
+  .wrap { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+    border: 1px solid rgba(255,255,255,.12); }
+  .sys { position: relative; width: 150px; height: 150px; }
+  .core { position: absolute; inset: 0; margin: auto; width: 32px; height: 32px; border-radius: 50%; background: #fff;
+    box-shadow: 0 0 40px rgba(255,255,255,.6); }
+  .ring { position: absolute; inset: 0; border: 1px solid rgba(255,255,255,.3); border-radius: 50%; }
+  .ring.r1 { animation: spin 5s linear infinite; }
+  .ring.r2 { inset: 26px; animation: spin 8s linear infinite reverse; }
+  .ring .sat { position: absolute; top: -4px; left: 50%; width: 8px; height: 8px; border-radius: 50%; background: #fff; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .word { font-family: 'Segoe UI', sans-serif; font-weight: 700; letter-spacing: 12px; font-size: 26px; padding-left: 12px; }
+  .bar { width: 160px; height: 2px; background: rgba(255,255,255,.15); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: #fff; animation: load 2s ease forwards; }
+  @keyframes load { to { width: 100%; } }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="sys">
+      <div class="core"></div>
+      <div class="ring r1"><span class="sat"></span></div>
+      <div class="ring r2"><span class="sat"></span></div>
+    </div>
+    <div class="word">ORBIT</div>
+    <div class="bar"><i></i></div>
+  </div>
+</body>
+</html>

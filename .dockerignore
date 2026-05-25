@@ -1,0 +1,15 @@
+# Mantém a imagem do backend pequena
+**/node_modules
+dist
+desktop
+mobile
+landing
+docs
+.planning
+.git
+.claude
+web/downloads
+*.log
+.tmpdata
+.devdata
+npm-debug.log*

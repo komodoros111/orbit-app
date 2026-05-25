@@ -1,0 +1,26 @@
+# Blueprint do Render. No painel: New > Blueprint > aponte pro repositório.
+services:
+  - type: web
+    name: orbit
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: ORBIT_JWT_SECRET
+        generateValue: true        # segredo de sessão gerado automaticamente
+      - key: ORBIT_DATA_DIR
+        value: /data
+      # Opcional: para "Entrar com Orbit" abrir o /device certo. Se não setar,
+      # o servidor usa a própria URL pública (funciona pra maioria dos casos).
+      # - key: ORBIT_SITE_URL
+      #   sync: false
+
+    # ---- Persistência (recomendado) ----
+    # O plano FREE é efêmero: contas/servidores resetam quando o app dorme/redeploya.
+    # Para manter os dados, troque "plan: free" por "plan: starter" e descomente o disco:
+    # disk:
+    #   name: orbit-data
+    #   mountPath: /data
+    #   sizeGB: 1

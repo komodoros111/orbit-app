@@ -1,0 +1,33 @@
+# deps
+**/node_modules/
+
+# builds desktop
+dist/
+desktop/build/icon-256.png
+desktop/build/icon-512.png
+
+# instalador hospedado (grande; vai pra Vercel/Release, não pro git)
+web/downloads/
+
+# mobile nativo (gerado por `expo prebuild`)
+mobile/android/
+mobile/ios/
+mobile/.expo/
+
+# APKs (grandes; passam do limite de 100MB do GitHub) — vão por Release/CI
+*.apk
+
+# dados/locais
+.orbit/
+.tmpdata/
+.devdata/
+*.log
+npm-debug.log*
+
+# ferramentas/planejamento
+.planning/
+.claude/
+
+# os
+.DS_Store
+Thumbs.db

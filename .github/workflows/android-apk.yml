@@ -1,0 +1,59 @@
+name: Build Android APK
+
+# Builda o APK do Orbit na nuvem (sem precisar de SDK local) e publica
+# como artifact + asset de Release, pra você mandar o link pros amigos.
+
+on:
+  push:
+    branches: [main]
+    paths: ['mobile/**', '.github/workflows/android-apk.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install deps
+        working-directory: mobile
+        run: npm install --no-audit --no-fund
+
+      - name: Prebuild (gera projeto android)
+        working-directory: mobile
+        run: npx expo prebuild -p android --no-install
+
+      - name: Build APK (debug, instalável)
+        working-directory: mobile/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Renomear APK
+        run: cp mobile/android/app/build/outputs/apk/debug/app-debug.apk orbit.apk
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: orbit-apk
+          path: orbit.apk
+
+      - name: Publicar no Release "apk-latest"
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-latest
+          name: Orbit APK (latest)
+          files: orbit.apk
+          body: APK do Orbit gerado automaticamente. Baixe e instale no Android (ative "fontes desconhecidas").

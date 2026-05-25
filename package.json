@@ -1,0 +1,14 @@
+{
+  "name": "orbit",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Orbit - app de conversa gamer (desktop Electron + web/mobile responsivo)",
+  "author": "Orbit",
+  "scripts": {
+    "setup": "npm --prefix server install && npm --prefix desktop install",
+    "server": "node server/src/index.js",
+    "desktop": "npm --prefix desktop run start",
+    "start": "npm --prefix desktop run start",
+    "dist": "npm --prefix desktop run dist"
+  }
+}
