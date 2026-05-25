@@ -9,4 +9,4 @@ window.__ORBIT_API__ = "https://orbit-3bpp.onrender.com";
 // Android (APK): cole aqui o link do APK depois de gerar (ex.: link do EAS Build
 // ou de um GitHub Release). Deixe vazio para mostrar "Em breve".
 window.__ORBIT_DL_WIN__ = "/downloads/Orbit-Setup-0.1.0.exe";
-window.__ORBIT_DL_APK__ = "";
+window.__ORBIT_DL_APK__ = "https://github.com/komodoros111/orbit-app/releases/download/apk-latest/orbit.apk";
