@@ -12,6 +12,12 @@ services:
         generateValue: true        # segredo de sessão gerado automaticamente
       - key: ORBIT_DATA_DIR
         value: /data
+      # Persistência grátis via Upstash Redis — preencha no painel do Render
+      # (Environment). Sem elas, o servidor usa arquivo (efêmero no free).
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
       # Opcional: para "Entrar com Orbit" abrir o /device certo. Se não setar,
       # o servidor usa a própria URL pública (funciona pra maioria dos casos).
       # - key: ORBIT_SITE_URL

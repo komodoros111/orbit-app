@@ -16,9 +16,6 @@ const bots = require('./bots');
 const PORT = Number(process.env.ORBIT_PORT || process.env.PORT || 4317);
 const WEB_DIR = path.join(__dirname, '..', '..', 'web');
 
-db.load();
-seed();
-
 const app = express();
 app.use(express.json({ limit: '4mb' }));
 
@@ -648,6 +645,12 @@ function postMessage(channelId, { authorId, botId, content }) {
   if (!ch || !content) return null;
   const msg = { id: uid(), channelId, authorId: authorId || null, botId: botId || null, content: String(content).slice(0, 4000), ts: Date.now() };
   db.insert('messages', msg);
+  // limita o histórico por canal (mantém as últimas 300) pra não inflar o store
+  const chMsgs = db.state.messages.filter((m) => m.channelId === channelId);
+  if (chMsgs.length > 300) {
+    const drop = new Set(chMsgs.slice(0, chMsgs.length - 300).map((m) => m.id));
+    db.state.messages = db.state.messages.filter((m) => !drop.has(m.id));
+  }
   io.to('channel:' + channelId).emit('message:new', messageView(msg));
   return msg;
 }
@@ -777,7 +780,9 @@ function voicePeers(channelId) {
   return peers;
 }
 
-function start() {
+async function start() {
+  await db.load();   // carrega do Redis (hospedado) ou do arquivo (local)
+  seed();
   // Tenta a porta preferida; se ocupada, cai pra próxima e por fim numa porta livre (0).
   const candidates = [PORT, PORT + 1, PORT + 2, PORT + 3, PORT + 4, 0];
   return new Promise((resolve, reject) => {
