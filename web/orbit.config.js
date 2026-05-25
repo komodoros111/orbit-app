@@ -2,7 +2,7 @@
 // Local / desktop / self-hosted: deixe vazio para usar a mesma origem.
 // SPA hospedado na Vercel (ou outro host estático): aponte para a URL pública
 // do backend Orbit, ex.: window.__ORBIT_API__ = "https://orbit-api.seudominio.com";
-window.__ORBIT_API__ = "";
+window.__ORBIT_API__ = "https://orbit-3bpp.onrender.com";
 
 // Links de download mostrados na landing.
 // Windows: o instalador é hospedado junto do site em /downloads/.
