@@ -13,6 +13,7 @@ import { renderSettings } from './views/settings.js';
 import { openServerSettings } from './views/roles.js';
 import { CallManager } from './views/call.js';
 import { renderMarkdown } from './markdown.js';
+import { openProfile } from './views/profile.js';
 
 export async function mountApp(App, root) {
   try { await ensureSocketClient(); } catch (e) { console.warn(e.message); }
@@ -148,7 +149,7 @@ export async function mountApp(App, root) {
         homeNavItem('Amigos', 'users', 'friends', app.pendingIn),
         homeNavItem('Bots', 'bot', 'bots'),
         homeNavItem('Loja', 'store', 'store'),
-        homeNavItem('Orbit+', 'sparkle', 'subscription'),
+        homeNavItem('Pulsar', 'sparkle', 'subscription'),
       ),
     );
   }
@@ -156,7 +157,7 @@ export async function mountApp(App, root) {
   function renderServerSidebar() {
     const s = state.currentServer;
     const head = h('div', { class: 'sidebar-head', onClick: () => openServerMenu(s) },
-      h('span', {}, s.name),
+      h('span', { class: 'row gap-8' }, s.name, s.boostLevel ? h('span', { class: 'boost-badge', title: s.boosts + ' impulsos', html: icon('flame', 12) + ' Nv ' + s.boostLevel }) : ''),
       h('button', { class: 'icon-btn', html: icon('chevron', 16) }));
     const scroll = h('div', { class: 'sidebar-scroll' });
     const groups = { text: [], voice: [], forum: [] };
@@ -408,6 +409,10 @@ export async function mountApp(App, root) {
     items.push(menuRow('plus', 'Criar canal', () => openCreateChannel(s, 'text')));
     if (hasPerm(s, 'MANAGE_ROLES') || hasPerm(s, 'MANAGE_SERVER')) items.push(menuRow('shield', 'Cargos & permissões', () => openServerSettings(app, s)));
     items.push(menuRow('link', 'Convidar (copiar ID)', () => { navigator.clipboard?.writeText(s.id); toast('ID do servidor copiado', 'success'); }));
+    items.push(menuRow('flame', `Impulsionar servidor (nível ${s.boostLevel || 0} · ${s.boosts || 0} impulsos)`, async () => {
+      try { const r = await api.post(`/api/servers/${s.id}/boost`); toast('Servidor impulsionado! Total: ' + r.boosts, 'success'); }
+      catch (e) { toast(e.message, 'error'); }
+    }));
     items.push(menuRow('bot', 'Adicionar bot', () => { app.view = 'bots'; renderRail(); renderSidebar(); renderMain(); }));
     if (s.ownerId !== state.me.id) items.push(menuRow('logout', 'Sair do servidor', async () => { if (await confirmDialog({ title: 'Sair', message: 'Sair de ' + s.name + '?', confirmLabel: 'Sair' })) { await api.post(`/api/servers/${s.id}/leave`); await app.loadServers(); app.goHome(); } }));
     modal({ title: s.name, body: h('div', { class: 'col gap-4' }, items) });
@@ -421,6 +426,7 @@ export async function mountApp(App, root) {
   function openMemberMenu(s, m) {
     if (m.userId === state.me.id) return;
     const rows = [];
+    rows.push(menuRow('user', 'Ver perfil', () => openProfile(m.userId, app)));
     const canRoles = hasPerm(s, 'MANAGE_ROLES');
     if (canRoles) rows.push(menuRow('shield', 'Gerenciar cargos', () => openAssignRoles(s, m)));
     if (hasPerm(s, 'MUTE')) rows.push(menuRow('micOff', m.muted ? 'Remover silêncio' : 'Silenciar', async () => { await api.post(`/api/servers/${s.id}/members/${m.userId}/mute`); }));

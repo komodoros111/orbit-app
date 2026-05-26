@@ -110,6 +110,32 @@
 .af-name { font-weight: 600; font-size: 13px; word-break: break-all; }
 .af-size { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
+/* ---- cartão de perfil ---- */
+.profile-card { margin: -20px; }
+.pc-banner { height: 130px; background: radial-gradient(circle at 70% 30%, #232323, #0a0a0a 70%); background-size: cover; background-position: center; }
+.pc-avatar { margin: -44px 0 0 18px; width: 88px; height: 88px; border-radius: 50%; border: 4px solid var(--panel); background: var(--panel); }
+.pc-avatar .avatar { width: 80px !important; height: 80px !important; }
+.pc-body { padding: 10px 20px 20px; }
+.pc-name { font-family: var(--font-display); font-size: 23px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pc-name .pulsar-mark { color: #fff; filter: drop-shadow(0 0 8px rgba(255,255,255,.6)); }
+.server-tag { font-family: var(--font-mono); font-size: 11px; background: var(--bg-3); border: 1px solid var(--line-2); padding: 2px 8px; border-radius: 5px; letter-spacing: 1px; }
+.pulsar-mark { color: #fff; }
+.pc-handle { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.pc-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.badge-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; border: 1px solid var(--line-2); border-radius: 20px; padding: 4px 9px; color: var(--text); }
+.badge-chip .ico { color: #fff; }
+.pc-section { margin-top: 16px; }
+.pc-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted-2); font-weight: 700; margin-bottom: 6px; }
+.pc-bio { color: #d8d8d8; white-space: pre-wrap; }
+.game-banner { display: flex; align-items: center; gap: 10px; padding: 16px; border-radius: 10px; border: 1px solid var(--line-2); font-family: var(--font-display); font-size: 17px; color: #fff; }
+.game-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+.game-card { aspect-ratio: 3/4; border-radius: 9px; border: 1px solid var(--line-2); display: flex; flex-direction: column; justify-content: space-between; padding: 10px; color: #fff; transition: transform var(--speed); }
+.game-card:hover { transform: translateY(-3px); }
+.game-card .ico { opacity: .9; }
+.gc-name { font-size: 12px; font-weight: 700; line-height: 1.15; }
+.boost-badge { font-family: var(--font-mono); font-size: 10px; border: 1px solid var(--line-2); border-radius: 12px; padding: 1px 7px; display: inline-flex; align-items: center; gap: 3px; color: var(--text); }
+.banner-prev { height: 96px; border-radius: 8px; border: 1px solid var(--line-2); background: #1a1a1a; background-size: cover; background-position: center; }
+
 /* ---- mention autocomplete ---- */
 .mention-pop { position: absolute; bottom: 100%; left: 16px; right: 16px; margin-bottom: 8px; background: var(--elev);
   border: 1px solid var(--line-2); border-radius: 10px; max-height: 240px; overflow: auto; box-shadow: var(--shadow); z-index: 30; padding: 6px;

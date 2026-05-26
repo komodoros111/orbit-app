@@ -14,13 +14,18 @@ wireSfx(document);
 if (localStorage.getItem('orbit.reduceMotion') === '1') document.body.classList.add('reduce-motion');
 import('./sound.js').then((m) => m.loadCustomSounds && m.loadCustomSounds());
 
+// Nome do app (muda no modo de teste)
+const ORBIT_TEST = !!window.__ORBIT_TEST__;
+const BRAND = ORBIT_TEST ? 'ORBIT TESTES' : 'ORBIT';
+document.title = ORBIT_TEST ? 'Orbit Testes' : 'Orbit';
+
 // Title bar escura customizada (somente no app desktop frameless)
 if (window.orbitDesktop && window.orbitDesktop.win) {
   document.body.classList.add('frameless');
   const tb = document.createElement('div');
   tb.className = 'app-titlebar';
   tb.innerHTML =
-    '<div class="tb-left">' + icon('orbit', 16) + '<span>ORBIT</span></div>' +
+    '<div class="tb-left">' + icon('orbit', 16) + '<span>' + BRAND + '</span></div>' +
     '<div class="tb-drag"></div>' +
     '<div class="tb-controls">' +
     '<button class="tb-btn" data-act="min" title="Minimizar">' + icon('minimize', 16) + '</button>' +

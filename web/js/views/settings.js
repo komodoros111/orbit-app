@@ -80,6 +80,16 @@ export function renderSettings(app) {
     });
     const nameInput = h('input', { class: 'input', value: me.username });
     const stLabel = { online: 'Online', idle: 'Ausente', dnd: 'Não perturbe', offline: 'Offline' }[me.status || 'online'] || 'Online';
+    // perfil
+    const bioInput = h('textarea', { class: 'textarea', maxlength: '280', placeholder: 'Fale de você (markdown e links). Aparece no seu perfil.' }); bioInput.value = me.bio || '';
+    const tagInput = h('input', { class: 'input', maxlength: '16', placeholder: 'Ex: PRO, GG, Dev', value: me.serverTag || '' });
+    let banner = me.banner || null;
+    const bannerPrev = h('div', { class: 'banner-prev', style: banner ? (banner.startsWith('data:') || banner.startsWith('http') || banner.startsWith('/') ? { backgroundImage: 'url(' + banner + ')' } : { background: banner }) : {} });
+    const bannerFile = h('input', { type: 'file', accept: 'image/*', style: { display: 'none' } });
+    bannerFile.addEventListener('change', async () => { const f = bannerFile.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { const img = new Image(); img.onload = () => { const w = 720, hh = Math.round(w * img.height / img.width); const c = document.createElement('canvas'); c.width = w; c.height = hh; c.getContext('2d').drawImage(img, 0, 0, w, hh); banner = c.toDataURL('image/jpeg', 0.82); bannerPrev.style.backgroundImage = 'url(' + banner + ')'; }; img.src = r.result; }; r.readAsDataURL(f); });
+    const gamesSel = h('select', { class: 'select', multiple: 'true', size: '6' });
+    api.get('/api/games').then(({ games }) => { for (const g of games) gamesSel.appendChild(h('option', { value: g.name, selected: (me.games || []).includes(g.name) }, g.name)); }).catch(() => {});
+
     return h('div', {},
       h('h1', { class: 'settings-title' }, 'Minha conta'),
       h('div', { class: 'section-card' },
@@ -89,8 +99,21 @@ export function renderSettings(app) {
             h('div', { class: 'mono muted', style: { fontSize: '12px' } }, 'Identificador: ' + me.username + '#' + me.tag))),
         h('div', { class: 'list-row', style: { marginTop: '14px' } },
           h('span', { class: 'dot ' + (me.status || 'online') }),
-          h('div', { class: 'lr-main' }, h('div', { class: 'lr-title' }, 'Status: ' + stLabel), h('div', { class: 'lr-sub' }, 'Detectado automaticamente pelo Orbit (online quando ativo, ausente quando inativo).'))),
-        h('button', { class: 'btn btn-primary', style: { marginTop: '14px' }, onClick: async () => { try { const { user } = await api.patch('/api/me', { username: nameInput.value }); Object.assign(me, user); toast('Perfil salvo', 'success'); app.renderSidebar(); } catch (e) { toast(e.message, 'error'); } } }, 'Salvar')));
+          h('div', { class: 'lr-main' }, h('div', { class: 'lr-title' }, 'Status: ' + stLabel), h('div', { class: 'lr-sub' }, 'Detectado automaticamente (online quando ativo, ausente quando inativo).')))),
+      h('div', { class: 'section-card' },
+        h('h3', {}, 'Perfil'),
+        h('p', { class: 'desc' }, 'Como você aparece pros outros ao clicarem no seu nome.'),
+        h('div', { class: 'field' }, h('label', {}, 'Biografia'), bioInput),
+        h('div', { class: 'field' }, h('label', {}, 'Tag de servidor (ao lado do nome)'), tagInput),
+        h('div', { class: 'field' }, h('label', {}, 'Banner do perfil' + (me.pulsar ? '' : ' (Pulsar destaca)')), bannerPrev,
+          h('div', { class: 'row gap-8', style: { marginTop: '8px' } },
+            h('label', { class: 'btn btn-sm', html: icon('camera', 13) + '<span>Escolher banner</span>' }, bannerFile),
+            h('button', { class: 'btn btn-sm', onClick: () => { banner = null; bannerPrev.style.backgroundImage = ''; bannerPrev.style.background = ''; } }, 'Remover'))),
+        h('div', { class: 'field' }, h('label', {}, 'Seus jogos (Ctrl/⌘ para vários)'), gamesSel),
+        h('button', { class: 'btn btn-primary', onClick: async () => {
+          const games = [...gamesSel.selectedOptions].map((o) => o.value);
+          try { const { user } = await api.patch('/api/me', { username: nameInput.value, bio: bioInput.value, serverTag: tagInput.value, banner, games }); Object.assign(me, user); toast('Perfil salvo', 'success'); app.renderSidebar(); } catch (e) { toast(e.message, 'error'); }
+        } }, 'Salvar perfil')));
   }
 
   // ---- Voz e vídeo ----

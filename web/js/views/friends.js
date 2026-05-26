@@ -1,8 +1,9 @@
-import { h, clear, avatar, toast, escapeHtml, confirmDialog } from '../ui.js';
+import { h, clear, avatar, toast, escapeHtml, confirmDialog, modal } from '../ui.js';
 import { icon } from '../icons.js';
 import { api } from '../api.js';
 import { state } from '../state.js';
 import { emitS } from '../socket.js';
+import { openProfile } from './profile.js';
 
 export function renderFriends(app) {
   const page = h('div', { class: 'friends-page' });
@@ -70,13 +71,14 @@ export function renderFriends(app) {
       for (const f of friends) {
         const dotCls = f.status === 'offline' ? 'offline' : 'online';
         box.appendChild(h('div', { class: 'activity-card hover-lift' },
-          h('div', { style: { position: 'relative' } }, avatar(f, 44), h('span', { class: 'dot ' + dotCls, style: { position: 'absolute', right: '-2px', bottom: '-2px' } })),
-          h('div', { style: { flex: 1, minWidth: 0 } },
-            h('div', { style: { fontWeight: 600 } }, f.username, h('span', { class: 'mono muted', style: { fontSize: '11px', marginLeft: '6px' } }, '#' + f.tag)),
-            f.playing ? h('div', { class: 'playing', html: icon('gamepad', 13) + ' Jogando <b style="color:#fff">' + escapeHtml(f.playing) + '</b>' })
-              : h('div', { class: 'playing muted' }, f.status === 'offline' ? 'Offline' : (f.favoriteGame ? 'Curte ' + escapeHtml(f.favoriteGame) : 'Online'))),
-          h('button', { class: 'icon-btn', title: 'Chamar em vídeo', html: icon('video', 18), onClick: () => app.call.start(f.id, f.username) }),
-          h('button', { class: 'icon-btn', title: 'Remover', html: icon('trash', 16), onClick: async () => { if (await confirmDialog({ title: 'Remover amigo', message: 'Remover ' + f.username + '?', confirmLabel: 'Remover' })) { await api.del('/api/friends/' + f.id); loadFriends(box); } } })));
+          h('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0, cursor: 'pointer' }, onClick: () => openProfile(f.id, app) },
+            h('div', { style: { position: 'relative' } }, avatar(f, 44), h('span', { class: 'dot ' + dotCls, style: { position: 'absolute', right: '-2px', bottom: '-2px' } })),
+            h('div', { style: { flex: 1, minWidth: 0 } },
+              h('div', { style: { fontWeight: 600 } }, f.username, f.pulsar ? h('span', { class: 'ico pulsar-mark', html: icon('sparkle', 12) }) : '', h('span', { class: 'mono muted', style: { fontSize: '11px', marginLeft: '6px' } }, '#' + f.tag)),
+              f.playing ? h('div', { class: 'playing', html: icon('gamepad', 13) + ' Jogando <b style="color:#fff">' + escapeHtml(f.playing) + '</b>' })
+                : h('div', { class: 'playing muted' }, f.status === 'offline' ? 'Offline' : (f.favoriteGame ? 'Curte ' + escapeHtml(f.favoriteGame) : 'Online')))),
+          h('button', { class: 'icon-btn', title: 'Chamar', html: icon('video', 18), onClick: () => app.call.start(f.id, f.username) }),
+          h('button', { class: 'icon-btn', title: 'Mais', html: icon('chevron', 16), onClick: () => openFriendMenu(f) })));
       }
     } catch (e) { clear(box); box.appendChild(h('p', { class: 'muted' }, 'Erro ao carregar amigos.')); }
   }
@@ -112,6 +114,19 @@ export function renderFriends(app) {
   }
 
   function refreshAll() { renderTab(); app.refreshNotifs(); }
+
+  function menuRow(ic, label, onClick) {
+    return h('div', { class: 'list-row', style: { cursor: 'pointer' }, onClick: (e) => { const ov = e.currentTarget.closest('.modal-overlay'); onClick(); if (ov) { ov.classList.add('out'); setTimeout(() => ov.remove(), 150); } } },
+      h('span', { class: 'ico', html: icon(ic, 18) }), h('div', { class: 'lr-main' }, h('div', { class: 'lr-title' }, label)));
+  }
+  function openFriendMenu(f) {
+    modal({ title: f.username + ' #' + f.tag, body: h('div', { class: 'col gap-4' },
+      menuRow('user', 'Ver perfil', () => openProfile(f.id, app)),
+      menuRow('video', 'Chamar', () => app.call.start(f.id, f.username)),
+      menuRow('ban', 'Bloquear', async () => { if (await confirmDialog({ title: 'Bloquear', message: 'Bloquear ' + f.username + '? Vocês deixam de ser amigos e ele não poderá te adicionar.', confirmLabel: 'Bloquear' })) { await api.post('/api/friends/' + f.id + '/block'); toast(f.username + ' bloqueado', 'info'); refreshAll(); } }),
+      menuRow('trash', 'Apagar amizade', async () => { if (await confirmDialog({ title: 'Apagar amizade', message: 'Remover ' + f.username + ' dos amigos?', confirmLabel: 'Apagar' })) { await api.del('/api/friends/' + f.id); refreshAll(); } }),
+    ) });
+  }
 
   // ---------- ADD ----------
   function addTab() {

@@ -6,6 +6,17 @@ const { db } = require('./db');
 
 const SECRET = process.env.ORBIT_JWT_SECRET || 'orbit-dev-secret-change-me';
 
+function computeBadges(u) {
+  const out = [];
+  if (u.beta) out.push({ id: 'pulsar', label: 'Pulsar', icon: 'sparkle' });
+  if (u.beta && u.pulsarSince) {
+    const months = Math.max(1, Math.floor((Date.now() - u.pulsarSince) / (30 * 864e5)));
+    out.push({ id: 'sub', label: months + (months > 1 ? ' meses' : ' mês') + ' de Pulsar', icon: 'flame' });
+  }
+  out.push({ id: 'founder', label: 'Membro fundador', icon: 'rocket' });
+  return out.concat(u.badges || []);
+}
+
 function publicUser(u) {
   if (!u) return null;
   return {
@@ -15,10 +26,17 @@ function publicUser(u) {
     avatar: u.avatar,
     points: u.points,
     beta: u.beta,
+    pulsar: !!u.beta,
     status: u.status,
     favoriteGame: u.favoriteGame,
+    games: u.games || [],
     playing: u.playing || null,
     namecard: u.namecard || null,
+    bio: u.bio || '',
+    banner: u.banner || null,
+    serverTag: u.serverTag || null,
+    badges: computeBadges(u),
+    createdAt: u.createdAt,
   };
 }
 
@@ -44,10 +62,16 @@ async function register({ username, email, password }) {
     avatar: null,
     points: 500,
     beta: false,
+    pulsarSince: null,
     status: 'online',
     favoriteGame: null,
+    games: [],
     playing: null,
     namecard: null,
+    bio: '',
+    banner: null,
+    serverTag: null,
+    badges: [],
     createdAt: Date.now(),
   };
   db.insert('users', user);

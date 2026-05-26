@@ -79,12 +79,15 @@ function serverDetail(s) {
     .filter('channels', (c) => c.serverId === s.id)
     .sort((a, b) => a.position - b.position)
     .map(channelView);
+  const boostCount = (s.boosts || []).length;
   return {
     ...serverSummary(s),
     roles: (s.roles || []).slice().sort((a, b) => b.position - a.position),
     channels,
     members: (s.members || []).map((m) => memberView(s, m)),
     bots: bots.botsInServer(s.id).map((b) => ({ id: b.id, name: b.name, ai: !!(b.ai && b.ai.enabled) })),
+    boosts: boostCount,
+    boostLevel: boostCount >= 6 ? 3 : boostCount >= 3 ? 2 : boostCount >= 1 ? 1 : 0,
   };
 }
 
@@ -236,15 +239,27 @@ app.post('/api/device/deny', (req, res) => {
 });
 
 app.patch('/api/me', (req, res) => {
-  const { avatar, favoriteGame, status, namecard, username } = req.body || {};
+  const { avatar, favoriteGame, status, namecard, username, bio, banner, games, serverTag } = req.body || {};
   const u = req.user;
   if (avatar !== undefined) u.avatar = avatar;
   if (favoriteGame !== undefined) u.favoriteGame = favoriteGame;
   if (status !== undefined) u.status = status;
   if (namecard !== undefined) u.namecard = namecard;
   if (username && username.trim().length >= 2) u.username = username.trim();
+  if (bio !== undefined) u.bio = String(bio).slice(0, 280);
+  if (banner !== undefined) u.banner = banner;
+  if (Array.isArray(games)) u.games = games.slice(0, 8);
+  if (serverTag !== undefined) u.serverTag = serverTag ? String(serverTag).slice(0, 16) : null;
   db.save();
   res.json({ user: auth.publicUser(u) });
+});
+
+// Perfil público de um usuário
+app.get('/api/users/:id', (req, res) => {
+  const u = db.byId('users', req.params.id);
+  if (!u) return res.status(404).json({ error: 'Usuário não encontrado' });
+  const isFriend = !!db.find('friends', (f) => f.userId === req.user.id && f.friendId === u.id);
+  res.json({ user: { ...auth.publicUser(u), online: online.has(u.id), isFriend } });
 });
 
 app.get('/api/games', (_req, res) => res.json({ games: GAMES.map((g) => ({ id: g.id, name: g.name })) }));
@@ -490,6 +505,8 @@ app.post('/api/friends/request', (req, res) => {
   }
   if (!target) return res.status(404).json({ error: 'Usuário não encontrado' });
   if (target.id === req.user.id) return res.status(400).json({ error: 'Você não pode se adicionar' });
+  if (db.find('blocked', (b) => b.userId === target.id && b.blockedId === req.user.id)) return res.status(403).json({ error: 'Não é possível adicionar este usuário' });
+  if (db.find('blocked', (b) => b.userId === req.user.id && b.blockedId === target.id)) return res.status(400).json({ error: 'Você bloqueou este usuário. Desbloqueie primeiro.' });
   if (db.find('friends', (f) => f.userId === req.user.id && f.friendId === target.id)) return res.status(400).json({ error: 'Vocês já são amigos' });
   if (db.find('friendRequests', (r) => r.fromId === req.user.id && r.toId === target.id)) return res.status(400).json({ error: 'Pedido já enviado' });
 
@@ -650,11 +667,45 @@ app.get('/api/subscription', (req, res) => {
 });
 
 app.post('/api/subscription', (req, res) => {
-  // Beta toggle — pagamento real fica "Em Breve" (sem cobrança).
+  // Pulsar (assinatura) toggle — pagamento real fica "Em Breve" (sem cobrança).
   req.user.beta = !!req.body.beta;
-  if (req.user.beta) req.user.points += 0;
+  if (req.user.beta && !req.user.pulsarSince) req.user.pulsarSince = Date.now();
+  if (!req.user.beta) req.user.pulsarSince = null;
   db.save();
-  res.json({ beta: req.user.beta });
+  res.json({ beta: req.user.beta, user: auth.publicUser(req.user) });
+});
+
+// ---------- bloquear / desbloquear ----------
+app.post('/api/friends/:id/block', (req, res) => {
+  const targetId = req.params.id;
+  if (targetId === req.user.id) return res.status(400).json({ error: 'Não dá pra se bloquear' });
+  db.remove('friends', (f) => (f.userId === req.user.id && f.friendId === targetId) || (f.userId === targetId && f.friendId === req.user.id));
+  db.remove('friendRequests', (r) => (r.fromId === req.user.id && r.toId === targetId) || (r.fromId === targetId && r.toId === req.user.id));
+  if (!db.find('blocked', (b) => b.userId === req.user.id && b.blockedId === targetId)) db.insert('blocked', { userId: req.user.id, blockedId: targetId });
+  io.to('user:' + targetId).emit('server:update', {}); // nudge
+  res.json({ ok: true });
+});
+app.post('/api/friends/:id/unblock', (req, res) => {
+  db.remove('blocked', (b) => b.userId === req.user.id && b.blockedId === req.params.id);
+  res.json({ ok: true });
+});
+app.get('/api/blocked', (req, res) => {
+  const list = db.filter('blocked', (b) => b.userId === req.user.id).map((b) => { const u = db.byId('users', b.blockedId); return u ? { id: u.id, username: u.username, tag: u.tag } : null; }).filter(Boolean);
+  res.json({ blocked: list });
+});
+
+// ---------- impulsos (boosts) do servidor — vantagem do Pulsar ----------
+app.post('/api/servers/:id/boost', (req, res) => {
+  const s = db.byId('servers', req.params.id);
+  if (!s) return res.status(404).json({ error: 'Servidor não encontrado' });
+  if (!getMembership(s, req.user.id)) return res.status(403).json({ error: 'Você não é membro' });
+  if (!req.user.beta) return res.status(403).json({ error: 'Impulsos são uma vantagem do Pulsar' });
+  s.boosts = s.boosts || [];
+  if (s.boosts.includes(req.user.id)) return res.status(400).json({ error: 'Você já impulsionou este servidor' });
+  s.boosts.push(req.user.id);
+  db.save();
+  io.to('server:' + s.id).emit('server:update', serverDetail(s));
+  res.json({ ok: true, boosts: s.boosts.length });
 });
 
 // ---------- landing page (marketing) at /landing ----------

@@ -72,7 +72,7 @@ export function renderLanding(App) {
   );
 
   const beta = h('div', { class: 'lp-section' },
-    h('h2', {}, h('span', { class: 'ico', html: icon('sparkle', 32) }), ' Orbit+ '),
+    h('h2', {}, h('span', { class: 'ico', html: icon('sparkle', 32) }), ' Pulsar '),
     h('p', { class: 'sec-sub' }, 'A assinatura premium do Orbit — perfil destacado, mais pontos e vantagens de beta. Pagamento chega já já.'),
     h('div', { class: 'feature-grid' },
       feature('sparkle', 'Perfil Premium', 'Assinatura paga com selo, avatar animado e destaque na lista.', true),

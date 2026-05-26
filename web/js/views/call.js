@@ -30,7 +30,16 @@ export class CallManager {
 
   async getMedia() {
     if (this.localStream) return this.localStream;
-    this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    try {
+      this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      this.camOff = false;
+    } catch (e1) {
+      // câmera indisponível/ocupada → tenta só áudio (chamada de voz funciona mesmo assim)
+      this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.camOff = true;
+      const why = e1.name === 'NotReadableError' ? 'câmera em uso por outro app' : e1.name === 'NotFoundError' ? 'nenhuma câmera encontrada' : e1.name === 'NotAllowedError' ? 'acesso negado' : (e1.name || 'erro');
+      toast('Sem vídeo (' + why + ') — chamada só com áudio', 'info');
+    }
     return this.localStream;
   }
 
@@ -57,7 +66,7 @@ export class CallManager {
       emitS('call:invite', { to: toUserId });
       emitS('rtc:signal', { to: toUserId, data: { type: 'offer', sdp: offer } });
       sfx.call();
-    } catch (e) { toast('Não foi possível acessar câmera/microfone', 'error'); this.cleanup(); }
+    } catch (e) { toast('Sem acesso ao microfone (' + (e.name || e.message) + ')', 'error'); this.cleanup(); }
   }
 
   onIncoming(from, name) {
@@ -81,7 +90,7 @@ export class CallManager {
       this.showOverlay('Conectando com ' + this.peerName + '…');
       emitS('call:accept', { to: this.peer });
       if (this.pendingOffer) { await this.applyOffer(this.pendingOffer); this.pendingOffer = null; }
-    } catch (e) { toast('Não foi possível acessar câmera/microfone', 'error'); this.cleanup(); }
+    } catch (e) { toast('Sem acesso ao microfone (' + (e.name || e.message) + ')', 'error'); this.cleanup(); }
   }
 
   async applyOffer(offer) {

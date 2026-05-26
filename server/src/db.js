@@ -23,6 +23,7 @@ const empty = () => ({
   bots: [],
   friends: [],
   friendRequests: [],
+  blocked: [], // { userId, blockedId }
   inventory: [],
   storeItems: [],
   meta: { seeded: false },
