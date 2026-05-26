@@ -144,15 +144,35 @@ export async function mountApp(App, root) {
 
   function homeHeader() { return h('div', { class: 'sidebar-head' }, h('span', { html: icon('orbit', 18) + '&nbsp; ORBIT' })); }
   function homeNavScroll() {
+    const dmBox = h('div', { id: 'dm-list' }, h('div', { class: 'muted', style: { padding: '6px 10px', fontSize: '12px' } }, '…'));
+    loadDMList(dmBox);
     return h('div', { class: 'sidebar-scroll' },
       h('div', { class: 'chan-group' },
         homeNavItem('Amigos', 'users', 'friends', app.pendingIn),
-        homeNavItem('Bots', 'bot', 'bots'),
-        homeNavItem('Loja', 'store', 'store'),
         homeNavItem('Pulsar', 'sparkle', 'subscription'),
+        homeNavItem('Loja', 'store', 'store'),
+        homeNavItem('Bots', 'bot', 'bots'),
       ),
+      h('div', { class: 'chan-group' },
+        h('div', { class: 'chan-group-h' }, h('span', {}, 'Mensagens diretas'),
+          h('button', { title: 'Nova conversa', html: icon('plus', 14), onClick: () => app.goHome('friends') })),
+        dmBox),
     );
   }
+  async function loadDMList(box) {
+    try {
+      const { conversations } = await api.get('/api/dm/recent');
+      clear(box);
+      if (!conversations.length) { box.appendChild(h('div', { class: 'muted', style: { padding: '6px 10px', fontSize: '12px' } }, 'Sem conversas. Vá em Amigos.')); return; }
+      for (const c of conversations) {
+        const dotCls = c.user.status && c.user.status !== 'offline' ? 'online' : 'offline';
+        box.appendChild(h('div', { class: 'dm-row' + (state.currentDM && state.currentDM.friend.id === c.user.id ? ' active' : ''), onClick: () => app.openDM(c.user) },
+          h('div', { style: { position: 'relative' } }, avatar(c.user, 32), h('span', { class: 'dot ' + dotCls, style: { position: 'absolute', right: '-2px', bottom: '-2px' } })),
+          h('div', { class: 'dm-meta' }, h('div', { class: 'dm-name' }, c.user.username), h('div', { class: 'dm-last' }, c.last || ''))));
+      }
+    } catch { clear(box); }
+  }
+  app._refreshDMList = () => { const box = document.getElementById('dm-list'); if (box) loadDMList(box); };
 
   function renderServerSidebar() {
     const s = state.currentServer;
@@ -527,6 +547,7 @@ export async function mountApp(App, root) {
         if (message.author.id !== state.me.id) sfx.message();
       }
     }
+    if (app.view !== 'server') app._refreshDMList && app._refreshDMList();
   });
   onS('friend:presence', (p) => { if (app.view === 'friends') renderMain(); });
   onS('notify', (n) => { toast(n.text, n.kind === 'friend_accepted' ? 'success' : 'info'); sfx.notify(); app.refreshNotifs(); if (app.view === 'friends' && app._friendsRefresh) app._friendsRefresh(); });

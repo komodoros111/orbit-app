@@ -506,6 +506,25 @@ app.get('/api/dm/:friendId/messages', (req, res) => {
   res.json({ messages: list });
 });
 
+// Conversas diretas recentes (pra lista lateral estilo Discord)
+app.get('/api/dm/recent', (req, res) => {
+  const meId = req.user.id;
+  const convs = {};
+  for (const m of db.state.messages) {
+    if (!m.channelId || m.channelId.indexOf('dm:') !== 0) continue;
+    const parts = m.channelId.slice(3).split('|');
+    if (parts.indexOf(meId) === -1) continue;
+    const other = parts[0] === meId ? parts[1] : parts[0];
+    if (!convs[other] || m.ts > convs[other].ts) convs[other] = { ts: m.ts, content: m.content, attachment: !!m.attachment };
+  }
+  const list = Object.keys(convs).map((id) => {
+    const u = db.byId('users', id); if (!u) return null;
+    const c = convs[id];
+    return { user: { ...miniUser(u), status: online.has(u.id) ? (u.status || 'online') : 'offline' }, lastTs: c.ts, last: c.attachment ? 'Anexo' : (c.content || '').slice(0, 40) };
+  }).filter(Boolean).sort((a, b) => b.lastTs - a.lastTs);
+  res.json({ conversations: list });
+});
+
 // Pedidos de amizade (entrada e saída)
 app.get('/api/friends/requests', (req, res) => {
   const incoming = db.filter('friendRequests', (r) => r.toId === req.user.id)
