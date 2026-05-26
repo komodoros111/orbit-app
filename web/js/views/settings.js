@@ -1,5 +1,6 @@
-import { h, clear, avatar, toast } from '../ui.js';
+import { h, clear, avatar, toast, modal } from '../ui.js';
 import { icon } from '../icons.js';
+import { profileCard } from './profile.js';
 import { api } from '../api.js';
 import { state } from '../state.js';
 import { setSound, soundOn, setCustomSound, clearCustomSound, hasCustomSound, playCustom, sfx } from '../sound.js';
@@ -75,20 +76,39 @@ export function renderSettings(app) {
     avWrap.appendChild(fileInput);
     fileInput.addEventListener('change', async () => {
       const f = fileInput.files[0]; if (!f) return;
-      try { const d = await fileToAvatar(f); await api.patch('/api/me', { avatar: d }); me.avatar = d; toast('Avatar atualizado', 'success'); app.renderSidebar(); avWrap.replaceChild(avatar(me, 96), avWrap.firstChild); }
+      try { const d = await fileToAvatar(f); await api.patch('/api/me', { avatar: d }); me.avatar = d; toast('Avatar atualizado', 'success'); app.renderSidebar(); avWrap.replaceChild(avatar(me, 96), avWrap.firstChild); refreshPreview(); }
       catch { toast('Falha ao processar imagem', 'error'); }
     });
     const nameInput = h('input', { class: 'input', value: me.username });
     const stLabel = { online: 'Online', idle: 'Ausente', dnd: 'Não perturbe', offline: 'Offline' }[me.status || 'online'] || 'Online';
-    // perfil
-    const bioInput = h('textarea', { class: 'textarea', maxlength: '280', placeholder: 'Fale de você (markdown e links). Aparece no seu perfil.' }); bioInput.value = me.bio || '';
-    const tagInput = h('input', { class: 'input', maxlength: '16', placeholder: 'Ex: PRO, GG, Dev', value: me.serverTag || '' });
-    let banner = me.banner || null;
-    const bannerPrev = h('div', { class: 'banner-prev', style: banner ? (banner.startsWith('data:') || banner.startsWith('http') || banner.startsWith('/') ? { backgroundImage: 'url(' + banner + ')' } : { background: banner }) : {} });
-    const bannerFile = h('input', { type: 'file', accept: 'image/*', style: { display: 'none' } });
-    bannerFile.addEventListener('change', async () => { const f = bannerFile.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { const img = new Image(); img.onload = () => { const w = 720, hh = Math.round(w * img.height / img.width); const c = document.createElement('canvas'); c.width = w; c.height = hh; c.getContext('2d').drawImage(img, 0, 0, w, hh); banner = c.toDataURL('image/jpeg', 0.82); bannerPrev.style.backgroundImage = 'url(' + banner + ')'; }; img.src = r.result; }; r.readAsDataURL(f); });
-    const gamesSel = h('select', { class: 'select', multiple: 'true', size: '6' });
-    api.get('/api/games').then(({ games }) => { for (const g of games) gamesSel.appendChild(h('option', { value: g.name, selected: (me.games || []).includes(g.name) }, g.name)); }).catch(() => {});
+
+    // prévia do perfil (igual aos outros veem)
+    const preview = h('div', {});
+    function refreshPreview() { profileCard(me).then((c) => preview.replaceChildren(c)).catch(() => {}); }
+    refreshPreview();
+
+    function openEditProfile() {
+      const bioInput = h('textarea', { class: 'textarea', maxlength: '280', placeholder: 'Fale de você (markdown e links).' }); bioInput.value = me.bio || '';
+      const tagInput = h('input', { class: 'input', maxlength: '16', placeholder: 'Ex: PRO, GG', value: me.serverTag || '' });
+      let banner = me.banner || null;
+      const bannerPrev = h('div', { class: 'banner-prev', style: banner ? (banner.startsWith('data:') || banner.startsWith('http') || banner.startsWith('/') ? { backgroundImage: 'url(' + (banner.startsWith('/') ? '' : '') + banner + ')' } : { background: banner }) : {} });
+      const bannerFile = h('input', { type: 'file', accept: 'image/*', style: { display: 'none' } });
+      bannerFile.addEventListener('change', () => { const f = bannerFile.files[0]; if (!f) return; const r = new FileReader(); r.onload = () => { const img = new Image(); img.onload = () => { const w = 720, hh = Math.round(w * img.height / img.width); const c = document.createElement('canvas'); c.width = w; c.height = hh; c.getContext('2d').drawImage(img, 0, 0, w, hh); banner = c.toDataURL('image/jpeg', 0.82); bannerPrev.style.background = ''; bannerPrev.style.backgroundImage = 'url(' + banner + ')'; }; img.src = r.result; }; r.readAsDataURL(f); });
+      const gamesSel = h('select', { class: 'select', multiple: 'true', size: '6' });
+      api.get('/api/games').then(({ games }) => { for (const g of games) gamesSel.appendChild(h('option', { value: g.name, selected: (me.games || []).includes(g.name) }, g.name)); }).catch(() => {});
+      modal({ title: 'Editar perfil', wide: true, body: h('div', {},
+        h('div', { class: 'field' }, h('label', {}, 'Biografia'), bioInput),
+        h('div', { class: 'field' }, h('label', {}, 'Tag de servidor (ao lado do nome)'), tagInput),
+        h('div', { class: 'field' }, h('label', {}, 'Banner do perfil' + (me.pulsar ? '' : ' — Pulsar destaca')), bannerPrev,
+          h('div', { class: 'row gap-8', style: { marginTop: '8px' } },
+            h('label', { class: 'btn btn-sm', html: icon('camera', 13) + '<span>Escolher banner</span>' }, bannerFile),
+            h('button', { class: 'btn btn-sm', onClick: () => { banner = null; bannerPrev.style.backgroundImage = ''; bannerPrev.style.background = ''; } }, 'Remover'))),
+        h('div', { class: 'field' }, h('label', {}, 'Seus jogos (Ctrl/⌘ para vários — logos aparecem no perfil)'), gamesSel)),
+        actions: [{ label: 'Salvar perfil', primary: true, onClick: async (close) => {
+          const games = [...gamesSel.selectedOptions].map((o) => o.value);
+          try { const { user } = await api.patch('/api/me', { bio: bioInput.value, serverTag: tagInput.value, banner, games }); Object.assign(me, user); toast('Perfil salvo', 'success'); refreshPreview(); app.renderSidebar(); close(); } catch (e) { toast(e.message, 'error'); }
+        } }] });
+    }
 
     return h('div', {},
       h('h1', { class: 'settings-title' }, 'Minha conta'),
@@ -96,24 +116,17 @@ export function renderSettings(app) {
         h('div', { class: 'row gap-16' }, avWrap,
           h('div', { style: { flex: 1 } },
             h('div', { class: 'field' }, h('label', {}, 'Nome de usuário'), nameInput),
-            h('div', { class: 'mono muted', style: { fontSize: '12px' } }, 'Identificador: ' + me.username + '#' + me.tag))),
+            h('div', { class: 'mono muted', style: { fontSize: '12px' } }, 'Identificador: ' + me.username + '#' + me.tag),
+            h('button', { class: 'btn btn-sm', style: { marginTop: '8px' }, onClick: async () => { try { const { user } = await api.patch('/api/me', { username: nameInput.value }); Object.assign(me, user); toast('Nome salvo', 'success'); app.renderSidebar(); refreshPreview(); } catch (e) { toast(e.message, 'error'); } } }, 'Salvar nome'))),
         h('div', { class: 'list-row', style: { marginTop: '14px' } },
           h('span', { class: 'dot ' + (me.status || 'online') }),
           h('div', { class: 'lr-main' }, h('div', { class: 'lr-title' }, 'Status: ' + stLabel), h('div', { class: 'lr-sub' }, 'Detectado automaticamente (online quando ativo, ausente quando inativo).')))),
       h('div', { class: 'section-card' },
-        h('h3', {}, 'Perfil'),
-        h('p', { class: 'desc' }, 'Como você aparece pros outros ao clicarem no seu nome.'),
-        h('div', { class: 'field' }, h('label', {}, 'Biografia'), bioInput),
-        h('div', { class: 'field' }, h('label', {}, 'Tag de servidor (ao lado do nome)'), tagInput),
-        h('div', { class: 'field' }, h('label', {}, 'Banner do perfil' + (me.pulsar ? '' : ' (Pulsar destaca)')), bannerPrev,
-          h('div', { class: 'row gap-8', style: { marginTop: '8px' } },
-            h('label', { class: 'btn btn-sm', html: icon('camera', 13) + '<span>Escolher banner</span>' }, bannerFile),
-            h('button', { class: 'btn btn-sm', onClick: () => { banner = null; bannerPrev.style.backgroundImage = ''; bannerPrev.style.background = ''; } }, 'Remover'))),
-        h('div', { class: 'field' }, h('label', {}, 'Seus jogos (Ctrl/⌘ para vários)'), gamesSel),
-        h('button', { class: 'btn btn-primary', onClick: async () => {
-          const games = [...gamesSel.selectedOptions].map((o) => o.value);
-          try { const { user } = await api.patch('/api/me', { username: nameInput.value, bio: bioInput.value, serverTag: tagInput.value, banner, games }); Object.assign(me, user); toast('Perfil salvo', 'success'); app.renderSidebar(); } catch (e) { toast(e.message, 'error'); }
-        } }, 'Salvar perfil')));
+        h('div', { class: 'row', style: { justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' } },
+          h('h3', {}, 'Perfil'),
+          h('button', { class: 'btn btn-sm', html: icon('edit', 14) + '<span>Editar</span>', onClick: openEditProfile })),
+        h('p', { class: 'desc' }, 'Prévia de como você aparece pros outros ao clicarem no seu nome/foto.'),
+        h('div', { class: 'profile-preview' }, preview)));
   }
 
   // ---- Voz e vídeo ----

@@ -137,6 +137,8 @@
 .gc-name { position: relative; z-index: 1; font-size: 12px; font-weight: 700; line-height: 1.15; }
 .boost-badge { font-family: var(--font-mono); font-size: 10px; border: 1px solid var(--line-2); border-radius: 12px; padding: 1px 7px; display: inline-flex; align-items: center; gap: 3px; color: var(--text); }
 .banner-prev { height: 96px; border-radius: 8px; border: 1px solid var(--line-2); background: #1a1a1a; background-size: cover; background-position: center; }
+.profile-preview { border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; padding: 20px; background: var(--bg); }
+.profile-preview .pc-avatar { border-color: var(--bg); }
 
 /* ---- mention autocomplete ---- */
 .mention-pop { position: absolute; bottom: 100%; left: 16px; right: 16px; margin-bottom: 8px; background: var(--elev);

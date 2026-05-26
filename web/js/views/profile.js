@@ -28,15 +28,13 @@ function bannerStyle(banner) {
   return `background:${banner};`;
 }
 
-export async function openProfile(userId, app) {
-  let u;
-  try { u = (await api.get('/api/users/' + userId)).user; } catch (e) { toast(e.message, 'error'); return; }
+// Constrói o cartão de perfil (reutilizado no modal e na prévia das configurações)
+export async function profileCard(u) {
   await loadCovers();
-
-  const card = h('div', { class: 'profile-card' },
+  return h('div', { class: 'profile-card' },
     h('div', { class: 'pc-banner', style: bannerStyle(u.banner) }),
     h('div', { class: 'pc-avatar', style: { position: 'relative' } }, avatar(u, 84),
-      h('span', { class: 'dot ' + (u.online ? (u.status || 'online') : 'offline'), style: { position: 'absolute', right: '4px', bottom: '4px' } })),
+      h('span', { class: 'dot ' + ((u.online === undefined ? true : u.online) ? (u.status || 'online') : 'offline'), style: { position: 'absolute', right: '4px', bottom: '4px' } })),
     h('div', { class: 'pc-body' },
       h('div', { class: 'pc-name' }, u.username,
         u.pulsar ? h('span', { class: 'ico pulsar-mark', title: 'Pulsar', html: icon('sparkle', 16) }) : '',
@@ -52,6 +50,12 @@ export async function openProfile(userId, app) {
           h('div', { class: 'game-card', style: coverStyle(g), title: g }, h('span', { class: 'gc-scrim' }), h('span', { class: 'gc-name' }, g))))) : null,
     ),
   );
+}
+
+export async function openProfile(userId, app) {
+  let u;
+  try { u = (await api.get('/api/users/' + userId)).user; } catch (e) { toast(e.message, 'error'); return; }
+  const card = await profileCard(u);
 
   const actions = [];
   if (userId !== state.me.id && app && app.call) actions.push({ label: 'Chamar', primary: true, onClick: (c) => { c(); app.call.start(userId, u.username); } });
