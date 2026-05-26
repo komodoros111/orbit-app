@@ -58,6 +58,7 @@ export async function openProfile(userId, app) {
   const card = await profileCard(u);
 
   const actions = [];
+  if (userId !== state.me.id && app && app.openDM && u.isFriend) actions.push({ label: 'Mensagem', onClick: (c) => { c(); app.openDM(u); } });
   if (userId !== state.me.id && app && app.call) actions.push({ label: 'Chamar', primary: true, onClick: (c) => { c(); app.call.start(userId, u.username); } });
   // ações de moderação (se você tem permissão no servidor atual)
   const s = state.currentServer;

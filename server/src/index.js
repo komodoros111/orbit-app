@@ -45,6 +45,24 @@ const uploadStorage = multer.diskStorage({
 const upload = multer({ storage: uploadStorage, limits: { fileSize: HARD_MAX } });
 app.use('/uploads', express.static(UPLOADS_DIR, { maxAge: '7d' }));
 
+// ---------- capas via SteamGridDB (cobre jogos fora da Steam) ----------
+const SGDB_KEY = process.env.ORBIT_STEAMGRIDDB_KEY;
+const sgdbCovers = {};
+async function resolveSgdbCovers() {
+  if (!SGDB_KEY) return;
+  const hdr = { headers: { Authorization: 'Bearer ' + SGDB_KEY } };
+  for (const g of GAMES) {
+    if (g.cover || sgdbCovers[g.id]) continue;
+    try {
+      const s = await (await fetch('https://www.steamgriddb.com/api/v2/search/autocomplete/' + encodeURIComponent(g.name), hdr)).json();
+      const gid = s.data && s.data[0] && s.data[0].id; if (!gid) continue;
+      const gr = await (await fetch('https://www.steamgriddb.com/api/v2/grids/game/' + gid + '?dimensions=600x900&types=static&limit=1', hdr)).json();
+      const url = gr.data && gr.data[0] && gr.data[0].url; if (url) sgdbCovers[g.id] = url;
+    } catch {}
+  }
+  console.log('[sgdb] capas extra resolvidas:', Object.keys(sgdbCovers).length);
+}
+
 // ---------- helpers ----------
 function uid() {
   return crypto.randomUUID();
@@ -262,7 +280,7 @@ app.get('/api/users/:id', (req, res) => {
   res.json({ user: { ...auth.publicUser(u), online: online.has(u.id), isFriend } });
 });
 
-app.get('/api/games', (_req, res) => res.json({ games: GAMES.map((g) => ({ id: g.id, name: g.name, cover: g.cover || null })) }));
+app.get('/api/games', (_req, res) => res.json({ games: GAMES.map((g) => ({ id: g.id, name: g.name, cover: g.cover || sgdbCovers[g.id] || null })) }));
 
 // ---------- REST: servers ----------
 app.get('/api/servers', (req, res) => {
@@ -478,6 +496,14 @@ app.get('/api/friends', (req, res) => {
   const rels = db.filter('friends', (f) => f.userId === req.user.id);
   const list = rels.map((f) => { const u = db.byId('users', f.friendId); return u ? publicFriend(u) : null; }).filter(Boolean);
   res.json({ friends: list });
+});
+
+// ---------- mensagens diretas (DM) ----------
+function dmKey(a, b) { return 'dm:' + [a, b].sort().join('|'); }
+app.get('/api/dm/:friendId/messages', (req, res) => {
+  const key = dmKey(req.user.id, req.params.friendId);
+  const list = db.filter('messages', (m) => m.channelId === key).sort((a, b) => a.ts - b.ts).slice(-100).map(messageView);
+  res.json({ messages: list });
 });
 
 // Pedidos de amizade (entrada e saída)
@@ -793,6 +819,21 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('dm:send', ({ toId, content, attachment }) => {
+    if (!toId || (!content && !attachment)) return;
+    if (!db.find('friends', (f) => f.userId === userId && f.friendId === toId)) return; // só entre amigos
+    const key = dmKey(userId, toId);
+    const msg = { id: uid(), channelId: key, authorId: userId, botId: null, content: String(content || '').slice(0, 4000), attachment: attachment || null, ts: Date.now() };
+    db.insert('messages', msg);
+    const dm = db.filter('messages', (m) => m.channelId === key);
+    if (dm.length > 300) { const drop = new Set(dm.slice(0, dm.length - 300).map((m) => m.id)); db.state.messages = db.state.messages.filter((m) => !drop.has(m.id)); }
+    const view = messageView(msg);
+    io.to('user:' + userId).emit('dm:message', { dmKey: key, peerId: toId, message: view });
+    io.to('user:' + toId).emit('dm:message', { dmKey: key, peerId: userId, message: view });
+    const me = db.byId('users', userId);
+    io.to('user:' + toId).emit('notify', { kind: 'dm', text: (me ? me.username : 'alguém') + ' te mandou uma mensagem', ts: Date.now() });
+  });
+
   socket.on('activity:set', (game) => {
     const u = db.byId('users', userId);
     if (!u) return;
@@ -869,6 +910,7 @@ function voicePeers(channelId) {
 async function start() {
   await db.load();   // carrega do Redis (hospedado) ou do arquivo (local)
   seed();
+  resolveSgdbCovers().catch(() => {}); // resolve capas extra em background (se houver chave)
   // Tenta a porta preferida; se ocupada, cai pra próxima e por fim numa porta livre (0).
   const candidates = [PORT, PORT + 1, PORT + 2, PORT + 3, PORT + 4, 0];
   return new Promise((resolve, reject) => {

@@ -18,6 +18,9 @@ services:
         sync: false
       - key: UPSTASH_REDIS_REST_TOKEN
         sync: false
+      # Capas de jogos fora da Steam (chave grátis em steamgriddb.com)
+      - key: ORBIT_STEAMGRIDDB_KEY
+        sync: false
       # Opcional: para "Entrar com Orbit" abrir o /device certo. Se não setar,
       # o servidor usa a própria URL pública (funciona pra maioria dos casos).
       # - key: ORBIT_SITE_URL

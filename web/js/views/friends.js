@@ -77,6 +77,7 @@ export function renderFriends(app) {
               h('div', { style: { fontWeight: 600 } }, f.username, f.pulsar ? h('span', { class: 'ico pulsar-mark', html: icon('sparkle', 12) }) : '', h('span', { class: 'mono muted', style: { fontSize: '11px', marginLeft: '6px' } }, '#' + f.tag)),
               f.playing ? h('div', { class: 'playing', html: icon('gamepad', 13) + ' Jogando <b style="color:#fff">' + escapeHtml(f.playing) + '</b>' })
                 : h('div', { class: 'playing muted' }, f.status === 'offline' ? 'Offline' : (f.favoriteGame ? 'Curte ' + escapeHtml(f.favoriteGame) : 'Online')))),
+          h('button', { class: 'icon-btn', title: 'Mensagem', html: icon('forum', 18), onClick: () => app.openDM(f) }),
           h('button', { class: 'icon-btn', title: 'Chamar', html: icon('video', 18), onClick: () => app.call.start(f.id, f.username) }),
           h('button', { class: 'icon-btn', title: 'Mais', html: icon('chevron', 16), onClick: () => openFriendMenu(f) })));
       }
@@ -122,6 +123,7 @@ export function renderFriends(app) {
   function openFriendMenu(f) {
     modal({ title: f.username + ' #' + f.tag, body: h('div', { class: 'col gap-4' },
       menuRow('user', 'Ver perfil', () => openProfile(f.id, app)),
+      menuRow('forum', 'Mensagem', () => app.openDM(f)),
       menuRow('video', 'Chamar', () => app.call.start(f.id, f.username)),
       menuRow('ban', 'Bloquear', async () => { if (await confirmDialog({ title: 'Bloquear', message: 'Bloquear ' + f.username + '? Vocês deixam de ser amigos e ele não poderá te adicionar.', confirmLabel: 'Bloquear' })) { await api.post('/api/friends/' + f.id + '/block'); toast(f.username + ' bloqueado', 'info'); refreshAll(); } }),
       menuRow('trash', 'Apagar amizade', async () => { if (await confirmDialog({ title: 'Apagar amizade', message: 'Remover ' + f.username + ' dos amigos?', confirmLabel: 'Apagar' })) { await api.del('/api/friends/' + f.id); refreshAll(); } }),

@@ -335,6 +335,34 @@ export async function mountApp(App, root) {
       h('div', {}, h('div', { class: 'af-name' }, att.name), h('div', { class: 'af-size' }, fmtSize(att.size))));
   }
 
+  // ---------- Mensagens diretas (DM) ----------
+  app.openDM = (friend) => {
+    app.view = 'dm'; state.currentServer = null; state.currentChannel = null;
+    state.currentDM = { friend, dmKey: 'dm:' + [state.me.id, friend.id].sort().join('|') };
+    renderRail(); renderSidebar(); renderDM(friend);
+  };
+  async function renderDM(friend) {
+    clear(main); members.style.display = 'none'; shell.classList.remove('with-members');
+    const head = h('div', { class: 'main-head' },
+      iconBtn('arrowLeft', { title: 'Voltar', onClick: () => app.goHome('friends') }),
+      avatar(friend, 28),
+      h('div', { class: 'title' }, friend.username),
+      h('div', { class: 'head-actions' }, iconBtn('video', { title: 'Chamar', onClick: () => app.call.start(friend.id, friend.username) })));
+    const list = h('div', { class: 'messages', id: 'msglist' });
+    const ta = h('textarea', { rows: '1', placeholder: 'Conversar com ' + friend.username });
+    const send = () => { const v = ta.value.trim(); if (v) { emitS('dm:send', { toId: friend.id, content: v }); ta.value = ''; ta.style.height = 'auto'; sfx.click(); } };
+    ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(ta.scrollHeight, 160) + 'px'; });
+    ta.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } });
+    const fileInput = h('input', { type: 'file', style: { display: 'none' } });
+    fileInput.addEventListener('change', async () => { const f = fileInput.files[0]; if (!f) return; toast('Enviando ' + f.name + '…', 'info'); try { const att = await uploadFile(f); emitS('dm:send', { toId: friend.id, content: ta.value.trim(), attachment: att }); ta.value = ''; } catch (e) { toast(e.message, 'error'); } fileInput.value = ''; });
+    const composer = h('div', { class: 'composer' }, h('div', { class: 'composer-box' },
+      h('button', { class: 'icon-btn', title: 'Anexar', html: icon('plus', 20), onClick: () => fileInput.click() }), fileInput, ta,
+      h('button', { class: 'icon-btn send-btn', html: icon('send', 18), onClick: send })));
+    main.append(head, list, composer);
+    try { const { messages } = await api.get('/api/dm/' + friend.id + '/messages'); app._dmMessages = messages; renderMessages(list, messages); } catch {}
+    setTimeout(() => ta.focus(), 30);
+  }
+
   // ---------- MEMBERS ----------
   function renderMembers() {
     if (app.view !== 'server' || !state.currentServer) { members.style.display = 'none'; updateShellCols(); return; }
@@ -483,6 +511,21 @@ export async function mountApp(App, root) {
       if (curCh && !detail.channels.find((c) => c.id === curCh.id)) { const t = detail.channels.find((c) => c.type === 'text'); if (t) app.openChannel(t); }
       renderServerSidebarSafe();
       renderMembers();
+    }
+  });
+  onS('dm:message', ({ dmKey, message }) => {
+    if (state.currentDM && state.currentDM.dmKey === dmKey) {
+      const list = document.getElementById('msglist');
+      if (list) {
+        const msgs = app._dmMessages || [];
+        const last = msgs[msgs.length - 1];
+        const grouped = last && last.author.id === message.author.id && (message.ts - last.ts) < 5 * 60000;
+        msgs.push(message); app._dmMessages = msgs;
+        const near = list.scrollHeight - list.scrollTop - list.clientHeight < 120;
+        list.appendChild(messageEl(message, grouped));
+        if (near) list.scrollTop = list.scrollHeight;
+        if (message.author.id !== state.me.id) sfx.message();
+      }
     }
   });
   onS('friend:presence', (p) => { if (app.view === 'friends') renderMain(); });
