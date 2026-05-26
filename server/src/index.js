@@ -262,7 +262,7 @@ app.get('/api/users/:id', (req, res) => {
   res.json({ user: { ...auth.publicUser(u), online: online.has(u.id), isFriend } });
 });
 
-app.get('/api/games', (_req, res) => res.json({ games: GAMES.map((g) => ({ id: g.id, name: g.name })) }));
+app.get('/api/games', (_req, res) => res.json({ games: GAMES.map((g) => ({ id: g.id, name: g.name, cover: g.cover || null })) }));
 
 // ---------- REST: servers ----------
 app.get('/api/servers', (req, res) => {

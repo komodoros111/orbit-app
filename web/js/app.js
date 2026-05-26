@@ -311,9 +311,11 @@ export async function mountApp(App, root) {
 
   function messageEl(m, grouped) {
     const time = new Date(m.ts).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const clickProfile = m.author.bot ? null : () => openProfile(m.author.id, app);
     const av = avatar(m.author, 40);
+    if (clickProfile) { av.style.cursor = 'pointer'; av.addEventListener('click', clickProfile); }
     const authorLine = h('div', { class: 'line1' },
-      h('span', { class: 'author' + (m.author.bot ? ' bot' : '') }, m.author.username, m.author.bot ? h('span', { class: 'botpill' }, 'BOT') : ''),
+      h('span', { class: 'author' + (m.author.bot ? ' bot' : ''), style: clickProfile ? { cursor: 'pointer' } : {}, onClick: clickProfile || undefined }, m.author.username, m.author.bot ? h('span', { class: 'botpill' }, 'BOT') : ''),
       h('span', { class: 'ts' }, time));
     const body = h('div', { class: 'body' }, grouped ? null : authorLine);
     if (m.content) body.appendChild(h('div', { class: 'content md', html: renderMarkdown(m.content, state.currentServer) }));
@@ -345,7 +347,7 @@ export async function mountApp(App, root) {
     for (const m of online.sort((a, b) => (b.isOwner - a.isOwner))) {
       const topRole = (m.roles || []).map((rid) => s.roles.find((r) => r.id === rid)).filter(Boolean).sort((a, b) => b.position - a.position)[0];
       const color = topRole ? topRole.color : null;
-      const row = h('div', { class: 'member', onClick: () => openMemberMenu(s, m) },
+      const row = h('div', { class: 'member', onClick: () => openProfile(m.userId, app) },
         avatar(m, 34),
         h('div', { class: 'm-meta' },
           h('div', { class: 'm-name', style: color ? { color } : {} }, m.username, m.isOwner ? h('span', { class: 'ico crown', html: icon('crown', 13) }) : '', m.muted ? h('span', { class: 'ico', html: icon('micOff', 12) }) : ''),

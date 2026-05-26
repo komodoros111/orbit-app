@@ -127,12 +127,14 @@
 .pc-section { margin-top: 16px; }
 .pc-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted-2); font-weight: 700; margin-bottom: 6px; }
 .pc-bio { color: #d8d8d8; white-space: pre-wrap; }
-.game-banner { display: flex; align-items: center; gap: 10px; padding: 16px; border-radius: 10px; border: 1px solid var(--line-2); font-family: var(--font-display); font-size: 17px; color: #fff; }
+.game-banner { position: relative; overflow: hidden; display: flex; align-items: center; gap: 10px; padding: 16px; border-radius: 10px; border: 1px solid var(--line-2); font-family: var(--font-display); font-size: 17px; color: #fff; min-height: 56px; }
+.gb-scrim { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(0,0,0,.8), rgba(0,0,0,.25)); }
+.game-banner > .ico, .game-banner > b { position: relative; z-index: 1; }
 .game-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
-.game-card { aspect-ratio: 3/4; border-radius: 9px; border: 1px solid var(--line-2); display: flex; flex-direction: column; justify-content: space-between; padding: 10px; color: #fff; transition: transform var(--speed); }
+.game-card { position: relative; overflow: hidden; aspect-ratio: 3/4; border-radius: 9px; border: 1px solid var(--line-2); display: flex; flex-direction: column; justify-content: flex-end; padding: 10px; color: #fff; transition: transform var(--speed); }
 .game-card:hover { transform: translateY(-3px); }
-.game-card .ico { opacity: .9; }
-.gc-name { font-size: 12px; font-weight: 700; line-height: 1.15; }
+.gc-scrim { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.88)); }
+.gc-name { position: relative; z-index: 1; font-size: 12px; font-weight: 700; line-height: 1.15; }
 .boost-badge { font-family: var(--font-mono); font-size: 10px; border: 1px solid var(--line-2); border-radius: 12px; padding: 1px 7px; display: inline-flex; align-items: center; gap: 3px; color: var(--text); }
 .banner-prev { height: 96px; border-radius: 8px; border: 1px solid var(--line-2); background: #1a1a1a; background-size: cover; background-position: center; }
 

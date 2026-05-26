@@ -146,10 +146,16 @@ export function renderSettings(app) {
     async function startTest() {
       stopTest();
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: camSel.value ? { deviceId: { exact: camSel.value } } : true,
-          audio: micSel.value ? { deviceId: { exact: micSel.value } } : true,
-        });
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: camSel.value ? { deviceId: { exact: camSel.value } } : true,
+            audio: micSel.value ? { deviceId: { exact: micSel.value } } : true,
+          });
+        } catch (ev) {
+          stream = await navigator.mediaDevices.getUserMedia({ audio: micSel.value ? { deviceId: { exact: micSel.value } } : true });
+          const why = ev.name === 'NotReadableError' ? 'câmera em uso por outro app' : ev.name === 'NotFoundError' ? 'nenhuma câmera encontrada' : (ev.name || 'erro');
+          toast('Sem vídeo (' + why + ') — testando só o microfone', 'info');
+        }
         preview.srcObject = stream;
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         const src = audioCtx.createMediaStreamSource(stream);
