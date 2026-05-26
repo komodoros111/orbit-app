@@ -43,13 +43,16 @@ function makeSyntheticStream(label) {
   };
   draw();
   const stream = canvas.captureStream(15);
-  // áudio: tom suave contínuo
+  // áudio: bip suave periódico (não um zumbido contínuo)
   try {
     const ac = new (window.AudioContext || window.webkitAudioContext)();
     const osc = ac.createOscillator(); const gain = ac.createGain(); const dest = ac.createMediaStreamDestination();
-    osc.type = 'sine'; osc.frequency.value = 330; gain.gain.value = 0.04;
+    osc.type = 'sine'; osc.frequency.value = 523; gain.gain.value = 0.0001;
     osc.connect(gain).connect(dest); osc.start();
-    dest.stream.getAudioTracks().forEach((tr) => stream.addTrack(tr));
+    const beep = () => { const t = ac.currentTime; gain.gain.cancelScheduledValues(t); gain.gain.setValueAtTime(0.0001, t); gain.gain.exponentialRampToValueAtTime(0.06, t + 0.05); gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.35); };
+    const iv = setInterval(beep, 3000); beep();
+    const at = dest.stream.getAudioTracks()[0];
+    if (at) { at.onended = () => { clearInterval(iv); ac.close().catch(() => {}); }; stream.addTrack(at); }
   } catch {}
   return stream;
 }

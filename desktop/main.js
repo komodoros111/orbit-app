@@ -1,6 +1,11 @@
 'use strict';
 const { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, session } = require('electron');
 const path = require('path');
+
+// Câmeras USB que falham com "Could not start video source" no backend novo do
+// Chromium (Media Foundation) costumam funcionar forçando o backend antigo (DirectShow).
+app.commandLine.appendSwitch('disable-features', 'MediaFoundationVideoCapture');
+app.commandLine.appendSwitch('enable-features', 'WebRtcHideLocalIpsWithMdns');
 const fs = require('fs');
 const { startGameScan } = require('./gamescan');
 
