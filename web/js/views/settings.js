@@ -165,19 +165,27 @@ export function renderSettings(app) {
             audio: micSel.value ? { deviceId: { exact: micSel.value } } : true,
           });
         } catch (ev) {
-          stream = await navigator.mediaDevices.getUserMedia({ audio: micSel.value ? { deviceId: { exact: micSel.value } } : true });
-          const why = ev.name === 'NotReadableError' ? 'câmera em uso por outro app' : ev.name === 'NotFoundError' ? 'nenhuma câmera encontrada' : (ev.name || 'erro');
-          toast('Sem vídeo (' + why + ') — testando só o microfone', 'info');
+          // retry rápido (locks transitórios) e diagnóstico real
+          let cams = '?'; try { cams = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'videoinput').length; } catch {}
+          let ok = false;
+          try { await new Promise((r) => setTimeout(r, 400)); stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }); ok = true; } catch {}
+          if (!ok) {
+            try { stream = await navigator.mediaDevices.getUserMedia({ audio: micSel.value ? { deviceId: { exact: micSel.value } } : true }); } catch {}
+            const why = ev.name === 'NotReadableError' ? 'a câmera existe mas não inicia — algum processo do sistema/serviço a está segurando (ou outra janela do Orbit aberta)' : ev.name === 'NotFoundError' ? 'nenhuma câmera detectada pelo sistema' : ev.name === 'NotAllowedError' ? 'bloqueada no Windows (Privacidade ▸ Câmera ▸ apps de desktop)' : (ev.name || 'erro');
+            toast(`Vídeo indisponível: ${why}. Câmeras detectadas: ${cams}. [${ev.name}]`, 'error');
+          }
         }
-        preview.srcObject = stream;
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const src = audioCtx.createMediaStreamSource(stream);
-        const an = audioCtx.createAnalyser(); an.fftSize = 512; src.connect(an);
-        const data = new Uint8Array(an.frequencyBinCount);
-        const tick = () => { an.getByteFrequencyData(data); let s = 0; for (const v of data) s += v; meterFill.style.width = Math.min(100, (s / data.length) / 110 * 100) + '%'; raf = requestAnimationFrame(tick); };
-        tick();
+        if (stream) preview.srcObject = stream;
+        if (stream && stream.getAudioTracks().length) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const src = audioCtx.createMediaStreamSource(stream);
+          const an = audioCtx.createAnalyser(); an.fftSize = 512; src.connect(an);
+          const data = new Uint8Array(an.frequencyBinCount);
+          const tick = () => { an.getByteFrequencyData(data); let s = 0; for (const v of data) s += v; meterFill.style.width = Math.min(100, (s / data.length) / 110 * 100) + '%'; raf = requestAnimationFrame(tick); };
+          tick();
+        }
         populate(); // rótulos aparecem após permissão
-      } catch (e) { toast('Sem acesso à câmera/microfone: ' + (e.message || e.name), 'error'); }
+      } catch (e) { toast('Sem acesso ao microfone: ' + (e.name || e.message), 'error'); }
     }
     camSel.addEventListener('change', () => { if (stream) startTest(); });
     micSel.addEventListener('change', () => { if (stream) startTest(); });

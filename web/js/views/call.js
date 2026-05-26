@@ -30,17 +30,23 @@ export class CallManager {
 
   async getMedia() {
     if (this.localStream) return this.localStream;
-    try {
-      this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      this.camOff = false;
-    } catch (e1) {
-      // câmera indisponível/ocupada → tenta só áudio (chamada de voz funciona mesmo assim)
+    // 1) tenta a câmera padrão
+    try { this.localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }); this.camOff = false; return this.localStream; }
+    catch (e1) {
+      // 2) a "padrão" pode ser virtual/quebrada — tenta CADA câmera detectada
+      try {
+        const cams = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'videoinput');
+        for (const c of cams) {
+          try { this.localStream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: c.deviceId } }, audio: true }); this.camOff = false; return this.localStream; } catch {}
+        }
+      } catch {}
+      // 3) nenhuma câmera abriu → chamada só com áudio (voz funciona)
       this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
       this.camOff = true;
-      const why = e1.name === 'NotReadableError' ? 'câmera em uso por outro app' : e1.name === 'NotFoundError' ? 'nenhuma câmera encontrada' : e1.name === 'NotAllowedError' ? 'acesso negado' : (e1.name || 'erro');
+      const why = e1.name === 'NotReadableError' ? 'câmera não inicia (driver/estado da câmera)' : e1.name === 'NotFoundError' ? 'nenhuma câmera encontrada' : e1.name === 'NotAllowedError' ? 'acesso negado pelo Windows' : (e1.name || 'erro');
       toast('Sem vídeo (' + why + ') — chamada só com áudio', 'info');
+      return this.localStream;
     }
-    return this.localStream;
   }
 
   newPeer() {
